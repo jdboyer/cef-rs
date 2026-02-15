@@ -1327,6 +1327,10 @@ impl RendererSideRouter {
             return;
         };
 
+        if context.enter() == 0 {
+            return;
+        }
+
         let value = match &response {
             mru::MessagePayload::String(s) => v8_value_create_string(Some(&s.into())),
             mru::MessagePayload::Empty | mru::MessagePayload::Binary(_) => {
@@ -1334,10 +1338,6 @@ impl RendererSideRouter {
                     mru::MessagePayload::Binary(b) => b.data(),
                     _ => &[],
                 };
-
-                if context.enter() == 0 {
-                    return;
-                }
 
                 #[cfg(feature = "sandbox")]
                 let value =
@@ -1351,10 +1351,11 @@ impl RendererSideRouter {
                     )),
                 );
 
-                context.exit();
                 value
             }
         };
+
+        context.exit();
 
         success_callback.execute_function_with_context(Some(&mut context), None, Some(&[value]));
     }
