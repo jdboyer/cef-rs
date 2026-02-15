@@ -12,15 +12,17 @@ fn main() {
 
 #[cfg(target_os = "linux")]
 fn main() {
-    use std::{env, fs, path::Path};
+    use std::{env, fs, path::Path, process::Command};
 
     let out_dir = env::var("OUT_DIR").unwrap();
     // OUT_DIR is something like target/debug/build/<pkg>/out
-    // We need target/debug/files/
+    // We need target/debug/
     let target_dir = Path::new(&out_dir)
         .ancestors()
         .nth(3)
         .expect("could not find target dir");
+
+    // Copy HTML resources to target/<profile>/files/
     let files_dir = target_dir.join("files");
     fs::create_dir_all(&files_dir).unwrap();
 
@@ -34,8 +36,22 @@ fn main() {
         }
     }
 
-    // Re-run if resources change
+    // Build the helper binary — CEF spawns it for renderer/utility sub-processes.
+    let profile = if env::var("PROFILE").as_deref() == Ok("release") {
+        "--release"
+    } else {
+        ""
+    };
+    let mut cmd = Command::new(env::var("CARGO").unwrap_or_else(|_| "cargo".into()));
+    cmd.args(["build", "--bin", "message_router_helper"]);
+    if !profile.is_empty() {
+        cmd.arg(profile);
+    }
+    let status = cmd.status().expect("failed to build message_router_helper");
+    assert!(status.success(), "failed to build message_router_helper");
+
     println!("cargo::rerun-if-changed=resources/linux");
+    println!("cargo::rerun-if-changed=src/bin/message_router_helper.rs");
 }
 
 #[cfg(not(any(target_os = "windows", target_os = "linux")))]
