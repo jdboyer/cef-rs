@@ -10,5 +10,33 @@ fn main() {
         .unwrap();
 }
 
-#[cfg(not(target_os = "windows"))]
+#[cfg(target_os = "linux")]
+fn main() {
+    use std::{env, fs, path::Path};
+
+    let out_dir = env::var("OUT_DIR").unwrap();
+    // OUT_DIR is something like target/debug/build/<pkg>/out
+    // We need target/debug/files/
+    let target_dir = Path::new(&out_dir)
+        .ancestors()
+        .nth(3)
+        .expect("could not find target dir");
+    let files_dir = target_dir.join("files");
+    fs::create_dir_all(&files_dir).unwrap();
+
+    let resources_dir = Path::new("resources/linux");
+    if resources_dir.exists() {
+        for entry in fs::read_dir(resources_dir).unwrap() {
+            let entry = entry.unwrap();
+            if entry.file_type().unwrap().is_file() {
+                fs::copy(entry.path(), files_dir.join(entry.file_name())).unwrap();
+            }
+        }
+    }
+
+    // Re-run if resources change
+    println!("cargo::rerun-if-changed=resources/linux");
+}
+
+#[cfg(not(any(target_os = "windows", target_os = "linux")))]
 fn main() {}
