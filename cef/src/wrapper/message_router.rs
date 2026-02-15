@@ -1332,7 +1332,17 @@ impl RendererSideRouter {
         }
 
         let value = match &response {
-            mru::MessagePayload::String(s) => v8_value_create_string(Some(&s.into())),
+            mru::MessagePayload::String(s) => {
+                let as_str = s.as_str();
+                let as_slice = s.as_slice();
+                eprintln!("[MSG_ROUTER] String payload: as_str={:?}, as_slice_len={:?}", as_str, as_slice.map(|s| s.len()));
+                let utf16: CefString = s.into();
+                let utf16_slice = utf16.as_slice();
+                eprintln!("[MSG_ROUTER] UTF16 conversion: has_slice={}, slice_len={:?}", utf16_slice.is_some(), utf16_slice.map(|s| s.len()));
+                let result = v8_value_create_string(Some(&utf16));
+                eprintln!("[MSG_ROUTER] v8_value_create_string result: is_some={}", result.is_some());
+                result
+            },
             mru::MessagePayload::Empty | mru::MessagePayload::Binary(_) => {
                 let data = match &response {
                     mru::MessagePayload::Binary(b) => b.data(),
