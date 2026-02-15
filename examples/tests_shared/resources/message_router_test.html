@@ -1,0 +1,40 @@
+<html>
+<head><title>Message Router Bug Repro</title></head>
+<body>
+<h2>cefQuery optional persistent field bug</h2>
+<pre id="log"></pre>
+<script>
+function log(msg) {
+  document.getElementById('log').textContent += msg + '\n';
+}
+
+window.addEventListener('load', function() {
+  if (!window.cefQuery) {
+    log('ERROR: cefQuery not available (message router not registered)');
+    return;
+  }
+
+  // Test 1: WITH persistent (should work)
+  log('[test 1] calling cefQuery WITH persistent: false ...');
+  window.cefQuery({
+    request: 'MessageRouterTest:hello',
+    persistent: false,
+    onSuccess: function(r) { log('[test 1] SUCCESS: ' + r); },
+    onFailure: function(c, m) { log('[test 1] FAILURE: ' + c + ' ' + m); }
+  });
+
+  // Test 2: WITHOUT persistent (should also work — it's optional)
+  log('[test 2] calling cefQuery WITHOUT persistent ...');
+  window.cefQuery({
+    request: 'MessageRouterTest:hello',
+    onSuccess: function(r) { log('[test 2] SUCCESS: ' + r); },
+    onFailure: function(c, m) { log('[test 2] FAILURE: ' + c + ' ' + m); }
+  });
+
+  log('');
+  log('Expected: both tests get SUCCESS callback with "olleh".');
+  log('Bug: test 2 is silently dropped — no callback fires.');
+});
+</script>
+</body>
+</html>

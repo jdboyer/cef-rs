@@ -1637,21 +1637,33 @@ wrap_v8_handler! {
                 };
             }
 
+            eprintln!("[MSG_ROUTER] V8Handler::execute() called! name={:?}", name.map(|n| n.to_string()));
             let Some(name) = name else {
                 return_exception!("Missing function name");
             };
             let name = name.to_string();
+            eprintln!("[MSG_ROUTER] name='{}', expected='{}'", name, self.config.js_query_function);
             if name == self.config.js_query_function {
+                eprintln!("[MSG_ROUTER] arguments is_some={}, len={:?}", arguments.is_some(), arguments.map(|a| a.len()));
                 let Some(arg) = arguments
                     .filter(|arguments| arguments.len() == 1)
                     .and_then(|arguments| arguments[0].as_ref())
                     .filter(|arg| arg.is_object() != 0)
                 else {
+                    eprintln!("[MSG_ROUTER] FAILED: argument validation (not a single object)");
                     return_exception!("Invalid arguments; expecting a single object");
                 };
+                eprintln!("[MSG_ROUTER] arg is object, checking request key '{}'", ObjectMember::REQUEST);
+                eprintln!("[MSG_ROUTER] exception param is_some={}", exception.is_some());
 
                 let key = CefString::from(ObjectMember::REQUEST);
-                let Some(request) = arg.value_bykey(Some(&key)) else {
+                eprintln!("[MSG_ROUTER] calling value_bykey...");
+                let request_val = arg.value_bykey(Some(&key));
+                eprintln!("[MSG_ROUTER] value_bykey returned is_some={}", request_val.is_some());
+                if let Some(ref rv) = request_val {
+                    eprintln!("[MSG_ROUTER] request: is_string={}, is_array_buffer={}", rv.is_string(), rv.is_array_buffer());
+                }
+                let Some(request) = request_val else {
                     return_exception!(format!(
                         "Invalid arguments; object member '{}' is required",
                         ObjectMember::REQUEST
@@ -1659,11 +1671,16 @@ wrap_v8_handler! {
                     .as_str());
                 };
                 if request.is_string() == 0 && request.is_array_buffer() == 0 {
+                    eprintln!("[MSG_ROUTER] FAILED: request is not string or ArrayBuffer");
                     return_exception!(format!("Invalid arguments; object member '{}' must have type string or ArrayBuffer", ObjectMember::REQUEST).as_str());
                 }
+                eprintln!("[MSG_ROUTER] request validated, checking onSuccess");
 
+                eprintln!("[MSG_ROUTER] D1");
                 let key = CefString::from(ObjectMember::ON_SUCCESS);
+                eprintln!("[MSG_ROUTER] D2 - calling value_bykey for onSuccess");
                 let success = if let Some(success) = arg.value_bykey(Some(&key)) {
+                    eprintln!("[MSG_ROUTER] D3 - got onSuccess, is_function={}", success.is_function());
                     if success.is_function() == 0 {
                         return_exception!(format!(
                             "Invalid arguments; object member '{}' must have type function",
@@ -1673,11 +1690,14 @@ wrap_v8_handler! {
                     }
                     Some(success)
                 } else {
+                    eprintln!("[MSG_ROUTER] D3 - no onSuccess");
                     None
                 };
+                eprintln!("[MSG_ROUTER] D4 - checking onFailure");
 
                 let key = CefString::from(ObjectMember::ON_FAILURE);
                 let failure = if let Some(failure) = arg.value_bykey(Some(&key)) {
+                    eprintln!("[MSG_ROUTER] D5 - got onFailure");
                     if failure.is_function() == 0 {
                         return_exception!(format!(
                             "Invalid arguments; object member '{}' must have type function",
@@ -1687,11 +1707,15 @@ wrap_v8_handler! {
                     }
                     Some(failure)
                 } else {
+                    eprintln!("[MSG_ROUTER] D5 - no onFailure");
                     None
                 };
 
+                eprintln!("[MSG_ROUTER] D6 - checking persistent");
                 let key = CefString::from(ObjectMember::PERSISTENT);
-                let persistent = if let Some(persistent) = arg.value_bykey(Some(&key)) {
+                eprintln!("[MSG_ROUTER] D6a - calling value_bykey for persistent");
+                let persistent = if let Some(persistent) = arg.value_bykey(Some(&key)).filter(|v| v.is_undefined() == 0) {
+                    eprintln!("[MSG_ROUTER] D6b - got persistent, is_bool={}", persistent.is_bool());
                     if persistent.is_bool() == 0 {
                         return_exception!(format!(
                             "Invalid arguments; object member '{}' must have type boolean",
@@ -1701,14 +1725,21 @@ wrap_v8_handler! {
                     }
                     Some(persistent)
                 } else {
+                    eprintln!("[MSG_ROUTER] D6c - no persistent (optional, ok)");
                     None
                 };
 
+                eprintln!("[MSG_ROUTER] D7 - calling router.upgrade()");
+                let router_upgrade = self.router.upgrade();
+                eprintln!("[MSG_ROUTER] D8 - calling v8_context_get_current_context()");
+                let current_context = v8_context_get_current_context();
+                eprintln!("[MSG_ROUTER] cefQuery execute: router_upgrade={}, current_context={}", router_upgrade.is_some(), current_context.is_some());
                 if let (Some(router), Some(context)) =
-                    (self.router.upgrade(), v8_context_get_current_context())
+                    (router_upgrade, current_context)
                 {
                     let context_id = self.get_id_for_context(context.clone());
                     let persistent = persistent.map_or(0, |value| value.bool_value()) != 0;
+                    eprintln!("[MSG_ROUTER] calling send_query context_id={}", context_id);
                     let request_id = router.send_query(
                         context.browser(),
                         context.frame(),
@@ -1720,6 +1751,7 @@ wrap_v8_handler! {
                             failure_callback: failure,
                         },
                     );
+                    eprintln!("[MSG_ROUTER] send_query returned request_id={}", request_id);
 
                     if let Some(retval) = retval {
                         *retval = v8_value_create_int(request_id);
