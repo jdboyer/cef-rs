@@ -47,7 +47,7 @@ fn value_bykey(&self, key: Option<&CefString>) -> Option<V8Value> {
 
 So for a missing key: `value_bykey` returns `Some(v8_undefined)`, `is_bool()` returns 0 on the undefined value, and `return_exception!` fires, silently aborting the handler.
 
-### Fix
+### Fix (applied)
 
 Filter out V8 undefined values when checking optional fields:
 
@@ -98,23 +98,19 @@ fn execute_success_callback(&self, ..., response: mru::MessagePayload) {
 
 There is no branch for string payloads to call `v8_value_create_string` instead.
 
-### Fix
+### Fix (applied)
 
-Dispatch on the payload type:
+Dispatch on the payload type — string payloads use `v8_value_create_string`, binary/empty use `v8_value_create_array_buffer`:
 
 ```rust
 let value = match &response {
-    mru::MessagePayload::String(s) => {
-        let cef_str = CefString::from(std::str::from_utf8(s.as_slice().unwrap_or(&[])).unwrap_or(""));
-        v8_value_create_string(Some(&cef_str))
-    }
-    _ => {
-        // Binary and Empty payloads remain as ArrayBuffer
+    mru::MessagePayload::String(s) => v8_value_create_string(Some(&s.into())),
+    mru::MessagePayload::Empty | mru::MessagePayload::Binary(_) => {
         let data = match &response {
-            mru::MessagePayload::Empty => &[],
             mru::MessagePayload::Binary(b) => b.data(),
-            _ => unreachable!(),
+            _ => &[],
         };
+        // context.enter()/exit() and array buffer creation...
         v8_value_create_array_buffer(data.as_ptr() as *mut u8, data.len(), ...)
     }
 };
