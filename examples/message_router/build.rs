@@ -36,22 +36,7 @@ fn main() {
         }
     }
 
-    // Build the helper binary — CEF spawns it for renderer/utility sub-processes.
-    let profile = if env::var("PROFILE").as_deref() == Ok("release") {
-        "--release"
-    } else {
-        ""
-    };
-    let mut cmd = Command::new(env::var("CARGO").unwrap_or_else(|_| "cargo".into()));
-    cmd.args(["build", "--bin", "message_router_helper"]);
-    if !profile.is_empty() {
-        cmd.arg(profile);
-    }
-    let status = cmd.status().expect("failed to build message_router_helper");
-    assert!(status.success(), "failed to build message_router_helper");
-
     println!("cargo::rerun-if-changed=resources/linux");
-    println!("cargo::rerun-if-changed=src/bin/message_router_helper.rs");
 }
 
 #[cfg(not(any(target_os = "windows", target_os = "linux")))]
