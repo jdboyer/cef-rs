@@ -2,6 +2,7 @@
 name = "message_router"
 edition = "2024"
 publish = false
+default-run = "message_router"
 
 [lib]
 name = "message_router_lib"
