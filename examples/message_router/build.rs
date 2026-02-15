@@ -12,7 +12,7 @@ fn main() {
 
 #[cfg(target_os = "linux")]
 fn main() {
-    use std::{env, fs, path::Path, process::Command};
+    use std::{env, fs, path::Path};
 
     let out_dir = env::var("OUT_DIR").unwrap();
     // OUT_DIR is something like target/debug/build/<pkg>/out

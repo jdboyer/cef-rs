@@ -49,7 +49,11 @@ pub fn run_main(main_args: &MainArgs, cmd_line: &CommandLine, sandbox_info: *mut
         assert_eq!(ret, -1, "cannot execute browser process");
     } else {
         let mut app = None;
-        if matches!(process_type, ProcessType::Renderer) {
+        #[cfg(target_os = "linux")]
+        let is_renderer = matches!(process_type, ProcessType::Renderer | ProcessType::Zygote);
+        #[cfg(not(target_os = "linux"))]
+        let is_renderer = matches!(process_type, ProcessType::Renderer);
+        if is_renderer {
             let render_process_handler = RenderProcessHandlerImpl::new(Default::default());
             app = Some(RendererApp::new(render_process_handler));
         }
