@@ -23,7 +23,7 @@ window.addEventListener('load', function() {
     onFailure: function(c, m) { log('[test 1] FAILURE: ' + c + ' ' + m); }
   });
 
-  // Test 2: WITHOUT persistent (should also work — it's optional)
+  // Test 2: WITHOUT persistent (should also work -- it's optional)
   log('[test 2] calling cefQuery WITHOUT persistent ...');
   window.cefQuery({
     request: 'MessageRouterTest:hello',
@@ -33,7 +33,7 @@ window.addEventListener('load', function() {
 
   log('');
   log('Expected: both tests get SUCCESS callback with "olleh".');
-  log('Bug: test 2 is silently dropped — no callback fires.');
+  log('Bug: test 2 is silently dropped -- no callback fires.');
 });
 </script>
 </body>
